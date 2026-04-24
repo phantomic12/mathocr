@@ -12,7 +12,7 @@ IMG_DIR_82025 = Path("/tmp/mathocr_batch_458tatft")
 IMG_DIR_12026 = Path("/tmp/mathocr_batch_ldnsj6bk")
 
 # Pages that returned [EMPTY] (old extraction bug) — need full re-OCR
-FAILED_82025 = [2, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 27, 28]
+FAILED_82025 = [2, 13, 18, 27, 28]
 FAILED_12026 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 27, 28]
 
 
