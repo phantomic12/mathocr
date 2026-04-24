@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLLs
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+venv/
+env/
+*.venv
+
+# Large cached data
+CACHEDIR.TAG
+demo_images/
+exam_results/
+/tmp/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local config
+.env
+.env.local
+config.yaml
