@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MathOCR — Accessible Math OCR</title>
+  <meta name="description" content="Extract LaTeX math from images and PDFs. Exports to DOCX, PDF, and EPUB." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div id="app">
+    <!-- Toast container -->
+    <div id="toast-container" role="status" aria-live="polite" aria-label="Notifications"></div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-desc">
+      <div class="auth-card">
+        <h1 id="auth-title">MathOCR</h1>
+        <p id="auth-desc" class="auth-subtitle">Sign in to transcribe math</p>
+        <form id="auth-form" aria-label="Sign in or register">
+          <div class="form-field">
+            <label for="auth-email">Email address</label>
+            <input type="email" id="auth-email" placeholder="you@example.com" required aria-required="true" autocomplete="email" />
+          </div>
+          <div class="form-field">
+            <label for="auth-password">Password</label>
+            <input type="password" id="auth-password" placeholder="Min. 8 characters" required aria-required="true" autocomplete="current-password" minlength="8" />
+          </div>
+          <div id="auth-error" class="auth-error hidden" role="alert" aria-live="assertive"></div>
+          <button type="submit" id="auth-submit-btn" aria-describedby="auth-submit-hint">Sign In</button>
+          <span id="auth-submit-hint" class="sr-only">Press Enter to submit</span>
+        </form>
+        <p class="auth-switch">
+          <span id="auth-switch-text">Don't have an account?</span>
+          <button type="button" id="auth-switch-btn">Register</button>
+        </p>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <aside id="sidebar" class="hidden" role="complementary" aria-label="Job history and settings">
+      <div class="sidebar-header">
+        <div class="sidebar-header-row">
+          <h2>MathOCR</h2>
+          <button id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+            <span id="theme-icon" aria-hidden="true">&#9789;</span>
+          </button>
+        </div>
+        <label for="provider-select" class="sr-only">Select LLM provider</label>
+        <select id="provider-select" aria-label="LLM provider"></select>
+      </div>
+      <h3 id="history-heading" class="sr-only">Job history</h3>
+      <div id="history-list" role="list" aria-labelledby="history-heading"></div>
+      <div class="sidebar-footer">
+        <span id="user-email" aria-label="Signed in as"></span>
+        <button id="logout-btn" aria-label="Sign out">Logout</button>
+      </div>
+    </aside>
+    <!-- Admin panel (only shown to admins) -->
+    <aside id="admin-panel" class="hidden" role="complementary" aria-label="Admin controls">
+      <div class="sidebar-header">
+        <h2>Admin</h2>
+      </div>
+      <div id="user-list" aria-label="User management"></div>
+    </aside>
+    <main id="main" class="hidden" tabindex="-1">
+      <div id="dropzone" role="button" tabindex="0" aria-label="Drop image or PDF here, or click to browse. Also accepts paste from clipboard with Ctrl+V." aria-describedby="dropzone-hint">
+        <div class="dropzone-inner">
+          <div class="dropzone-icon">&#128196;</div>
+          <p>Drag and drop image or PDF here</p>
+          <p class="dropzone-hint" id="dropzone-hint">
+            or <button id="browse-btn">browse files</button>
+            &nbsp;·&nbsp;
+            <button id="paste-btn" class="paste-btn" title="Paste from clipboard (Ctrl+V)">&#128203; paste</button>
+          </p>
+          <input type="file" id="file-input" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf" hidden />
+        </div>
+      </div>
+      <div id="result-panel" class="hidden" role="region" aria-label="OCR result">
+        <div class="result-header">
+          <span id="result-filename" aria-label="Filename"></span>
+          <div class="result-actions" role="group" aria-label="Export options">
+            <button id="copy-btn">Copy LaTeX</button>
+            <button id="download-tex-btn">Download .tex</button>
+            <button id="download-txt-btn">Download .txt</button>
+            <button id="download-json-btn">Download .json</button>
+            <button id="download-docx-btn">Download .docx</button>
+            <button id="download-pdf-btn">Download .pdf</button>
+            <button id="download-epub-btn">Download .epub</button>
+          </div>
+        </div>
+        <div id="result-time"></div>
+        <div id="result-pages"></div>
+        <div id="katex-output"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Job status overlay -->
+  <div id="job-status" class="hidden" role="status" aria-modal="false" aria-labelledby="job-status-text" aria-live="polite">
+    <div class="job-status-inner">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="job-status-text" aria-live="assertive">Processing...</p>
+      <div id="progress-bar-track" aria-hidden="true"><div id="progress-bar-fill"></div></div>
+      <p id="job-progress" aria-live="polite" aria-atomic="true"></p>
+    </div>
+  </div>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>

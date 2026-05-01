@@ -17,7 +17,7 @@ FAILED_12026 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 2
 
 
 def extract_latex(stdout: str) -> str:
-    """
+    r"""
     Parse LaTeX from mathocr.py CLI output.
 
     mathocr.py prints a ===-delimited header block, then the LaTeX, then a

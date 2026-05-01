@@ -1,0 +1,107 @@
+# =============================================================================
+# MathOCR — Docker Compose
+# Profiles: backend | frontend | ollama | vllm | full
+# Usage:
+#   Backend only (no frontend):  docker compose --profile backend up
+#   All-in-one:                  docker compose --profile full up
+#   With Ollama:                 docker compose --profile ollama up
+#   With vLLM:                  docker compose --profile vllm up
+# =============================================================================
+
+services:
+  # ── Backend API ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    profiles: [backend, full, ollama, vllm]
+    env_file:
+      - .env
+    environment:
+      - MATHOCR_DB_PATH=/data/mathocr.db
+      - MATHOCR_TEMP_DIR=/tmp/mathocr_uploads
+    volumes:
+      - mathocr-data:/data
+      - mathocr-uploads:/tmp/mathocr_uploads
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Frontend (Nginx) ───────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    profiles: [frontend, full]
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+  # ── Ollama (LLM runtime) ─────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    profiles: [ollama]
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  # ── vLLM (LLM runtime) ───────────────────────────────────────────────────
+  vllm:
+    image: vllm/vllm-openai:latest
+    profiles: [vllm]
+    env_file:
+      - .env
+    volumes:
+      - vllm-model:/root/.cache/vllm
+      - vllm-model:/root/.cache/huggingface
+    command: >
+      serve --model ${VLLM_MODEL:-meta-llama/Llama-3.2-3B-Instruct}
+      --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # ── All-in-one (backend + frontend in one container) ─────────────────────
+  allinone:
+    build:
+      context: .
+      dockerfile: Dockerfile.allinone
+    profiles: [allinone]
+    env_file:
+      - .env
+    network_mode: host
+    environment:
+      - MATHOCR_DB_PATH=/data/mathocr.db
+      - MATHOCR_TEMP_DIR=/tmp/mathocr_uploads
+      - FASTFLOWLM_BASE_URL=http://127.0.0.1:52625/v1
+    volumes:
+      - mathocr-data:/data
+      - mathocr-uploads:/tmp/mathocr_uploads
+    ports:
+      - "8000:8000"
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  mathocr-data:
+  mathocr-uploads:
+  ollama-data:
+  vllm-model:

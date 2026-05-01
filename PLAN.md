@@ -7,6 +7,7 @@ Build a self-hosted, locally-deployable MathOCR web application that:
 2. Sends them to a configurable LLM backend (Qwen3.5-VL via FastFlowLM, Ollama, vLLM, OpenAI, Anthropic, LM Studio, Jan, LocalAI, Modal, etc.)
 3. Returns accessible LaTeX rendered as math
 4. Supports batch processing, history, and multi-provider switching
+5. Exports results to DOCX, PDF, and EPUB with accessible math markup
 
 ---
 
@@ -49,6 +50,9 @@ Build a self-hosted, locally-deployable MathOCR web application that:
 | PDF→IMG    | `pdftoppm` (pre-installed, no Python dep)        |
 | Math render| KaTeX (client-side, CDN)                         |
 | Deploy     | Docker + Docker Compose                          |
+| Accessibility | JAWS/NVDA-compatible — skip links, ARIA roles and live regions, keyboard-navigable, semantic HTML, visible focus styles |
+| Export     | DOCX (python-docx), PDF (WeasyPrint HTML→PDF), EPUB3 (zip of XHTML) |
+| Auth       | User accounts (email/password, JWT) + Admin accounts (change settings, manage users) |
 
 ---
 
@@ -131,6 +135,12 @@ Provider selection is runtime-configured via SQLite settings table.
 | GET    | `/api/ocr/result/{job_id}`  | Fetch full LaTeX result           |
 | GET    | `/api/history`              | List past jobs (paginated)         |
 | DELETE | `/api/history/{job_id}`     | Delete a job                      |
+| POST   | `/api/ocr/export/docx/{job_id}` | Export job result as DOCX  |
+| POST   | `/api/ocr/export/pdf/{job_id}`  | Export job result as PDF   |
+| POST   | `/api/ocr/export/epub/{job_id}` | Export job result as EPUB  |
+| GET    | `/api/admin/users`            | List all users (admin only) |
+| POST   | `/api/admin/users`            | Promote/demote user to admin (admin only) |
+| DELETE | `/api/admin/users/{user_id}`  | Delete a user (admin only) |
 | GET    | `/api/providers`            | List available providers           |
 | GET    | `/api/settings`             | Get current provider config        |
 | PUT    | `/api/settings`             | Update provider config            |
