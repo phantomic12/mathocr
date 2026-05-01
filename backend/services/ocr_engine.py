@@ -10,6 +10,8 @@ from typing import Optional
 from fastapi import WebSocket
 
 from backend.llm.registry import get_provider
+from backend.llm.routing import select_provider
+from backend.routers.settings import _get_routing_config
 from backend.db.database import get_session
 from backend.db.models import Job
 from backend.services.pdf_utils import pdf_to_images
@@ -50,12 +52,31 @@ async def process_job(
 ) -> None:
     """Process a job: convert PDF if needed, call LLM per page, stream tokens."""
     start_time = time.time()
-    provider = get_provider(provider_name)
-
-    if provider is None:
-        provider = get_provider(config.DEFAULT_PROVIDER)
-    if provider is None:
-        raise ValueError(f"No LLM provider available: {provider_name}")
+    routing = _get_routing_config()
+    mode = routing.get("mode", "single")
+    if mode == "single":
+        # Legacy single-provider mode
+        provider = get_provider(provider_name)
+        if provider is None:
+            provider = get_provider(config.DEFAULT_PROVIDER)
+        if provider is None:
+            raise ValueError(f"No LLM provider available: {provider_name}")
+    else:
+        # Load balanced: determine enabled providers and weights
+        enabled = routing.get("enabled", {})
+        weights = routing.get("weights", {})
+        all_provider_names = [p[0] for p in enabled.items() if p[1]] if enabled else [provider_name]
+        enabled_providers = [
+            (name, weights.get(name, 1.0))
+            for name in all_provider_names
+            if enabled.get(name, True)
+        ]
+        if not enabled_providers:
+            enabled_providers = [(provider_name, 1.0)]
+        provider_name = select_provider("ocr", enabled_providers)
+        provider = get_provider(provider_name)
+        if provider is None:
+            raise ValueError(f"No LLM provider available: {provider_name}")
 
     file_type = _detect_file_type(filename)
     image_paths: list[Path] = []

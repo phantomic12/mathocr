@@ -49,6 +49,9 @@
           <button id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
             <span id="theme-icon" aria-hidden="true">&#9789;</span>
           </button>
+          <button id="open-provider-modal" title="Configure providers" aria-label="Configure LLM providers" class="sidebar-action-btn" style="width:auto;margin:0;padding:4px 8px;font-size:1rem;">
+            &#9881;
+          </button>
         </div>
         <label for="provider-select" class="sr-only">Select LLM provider</label>
         <select id="provider-select" aria-label="LLM provider"></select>
@@ -65,8 +68,63 @@
       <div class="sidebar-header">
         <h2>Admin</h2>
       </div>
+      <button id="open-provider-settings-btn" class="sidebar-action-btn" aria-label="Open provider settings">
+        <span aria-hidden="true">&#9881;</span> Provider Settings
+      </button>
       <div id="user-list" aria-label="User management"></div>
     </aside>
+
+    <!-- Provider Settings Modal (admin only) -->
+    <div id="provider-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="provider-modal-title" aria-describedby="provider-modal-desc">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="provider-modal-title">Provider Settings</h2>
+          <button id="provider-modal-close" class="modal-close" aria-label="Close provider settings">&times;</button>
+        </div>
+        <p id="provider-modal-desc" class="modal-desc">Configure how MathOCR routes OCR requests across multiple LLM providers.</p>
+
+        <!-- Routing Mode -->
+        <fieldset class="routing-fieldset">
+          <legend class="routing-legend">Routing Mode</legend>
+          <div class="routing-modes">
+            <label class="routing-mode-option">
+              <input type="radio" name="routing-mode" value="single" />
+              <div class="mode-card">
+                <span class="mode-name">Single Provider</span>
+                <span class="mode-desc">Use one provider for all requests</span>
+              </div>
+            </label>
+            <label class="routing-mode-option">
+              <input type="radio" name="routing-mode" value="round_robin" />
+              <div class="mode-card">
+                <span class="mode-name">Round Robin</span>
+                <span class="mode-desc">Distribute evenly across selected providers</span>
+              </div>
+            </label>
+            <label class="routing-mode-option">
+              <input type="radio" name="routing-mode" value="weighted" />
+              <div class="mode-card">
+                <span class="mode-name">Weighted</span>
+                <span class="mode-desc">Distribute by relative weight ratios</span>
+              </div>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Per-Provider Config -->
+        <fieldset class="routing-fieldset">
+          <legend class="routing-legend">Providers</legend>
+          <div id="provider-list"></div>
+        </fieldset>
+
+        <!-- Status Bar -->
+        <div class="provider-status-bar">
+          <span id="provider-summary"></span>
+          <button id="save-provider-config-btn" class="btn-primary">Save Changes</button>
+        </div>
+        <div id="provider-modal-error" class="modal-error hidden" role="alert"></div>
+      </div>
+    </div>
     <main id="main" class="hidden" tabindex="-1">
       <div id="dropzone" role="button" tabindex="0" aria-label="Drop image or PDF here, or click to browse. Also accepts paste from clipboard with Ctrl+V." aria-describedby="dropzone-hint">
         <div class="dropzone-inner">

@@ -49,6 +49,19 @@ function getAuthHeaders() {
 }
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PROVIDER_LABELS = {
+  fastflowlm: "FastFlowLM (Local)",
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  google: "Google AI",
+  groq: "Groq",
+  ollama: "Ollama",
+  lmstudio: "LM Studio",
+  together: "Together AI",
+  openrouter: "OpenRouter",
+};
+
 async function apiFetch(url, opts = {}) {
   const headers = { ...getAuthHeaders(), ...(opts.headers || {}) };
   const res = await fetch(API_BASE + url, { ...opts, headers });
@@ -337,6 +350,164 @@ async function deleteUser(userId) {
   } catch(e) { toast("Error: " + e.message, "error"); }
 }
 
+// ── Provider Settings ─────────────────────────────────────────────────────────
+let _providerSettings = {
+  mode: "single",
+  providers: {}  // keyed by name: { enabled: bool, weight: int }
+};
+
+async function openProviderModal() {
+  const modal = document.getElementById("provider-modal");
+  if (!modal) return;
+  document.getElementById("prov-modal-error").textContent = "";
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-modal", "true");
+  // Load routing config
+  try {
+    const res = await apiFetch("/api/settings/routing");
+    if (res && res.ok) {
+      const data = await res.json();
+      // Normalize: support both flat {enabled, weights} and nested {providers} shapes
+      if (data.providers) {
+        _providerSettings.mode = data.mode || "single";
+        _providerSettings.providers = {};
+        for (const [k, v] of Object.entries(data.providers)) {
+          _providerSettings.providers[k] = { enabled: v.enabled, weight: v.weight };
+        }
+      } else {
+        _providerSettings.mode = data.mode || "single";
+        _providerSettings.providers = {};
+        for (const [k, v] of Object.entries(data.enabled || {})) {
+          _providerSettings.providers[k] = { enabled: v, weight: data.weights?.[k] || 1 };
+        }
+      }
+      renderProviderList();
+      renderRoutingMode();
+      updateProviderSummary();
+    }
+  } catch(e) { console.error(e); }
+}
+
+function closeProviderModal() {
+  const modal = document.getElementById("provider-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.removeAttribute("aria-modal");
+  }
+}
+
+function renderRoutingMode() {
+  const radios = document.querySelectorAll(".routing-mode-option input[type=radio]");
+  radios.forEach(r => {
+    r.checked = r.value === _providerSettings.mode;
+  });
+}
+
+function renderProviderList() {
+  const container = document.getElementById("provider-list");
+  if (!container) return;
+  container.innerHTML = "";
+  const providers = _providerSettings.providers || {};
+
+  Object.entries(PROVIDER_LABELS).forEach(([key, label]) => {
+    const cfg = providers[key] || { enabled: false, weight: 1 };
+    const isEnabled = cfg.enabled !== false; // default true unless explicitly set
+    const isSingleMode = _providerSettings.mode === "single";
+    const row = document.createElement("div");
+    row.className = "provider-row" + (isEnabled ? "" : " disabled");
+    row.innerHTML = `
+      <div class="provider-status-dot online" aria-hidden="true"></div>
+      <div class="provider-name-cell">
+        <span class="prov-name">${esc(label)}</span>
+        <span class="prov-model">${esc(key)}</span>
+      </div>
+      <label class="toggle-switch" aria-label="Enable ${esc(label)}">
+        <input type="checkbox" data-provider="${esc(key)}" ${isEnabled ? "checked" : ""}
+          onchange="onProviderToggle('${esc(key)}', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      <div class="provider-weight-cell">
+        <label for="weight-${esc(key)}">Weight</label>
+        <input type="number" id="weight-${esc(key)}" class="weight-input"
+          value="${cfg.weight || 1}" min="1" max="100"
+          ${(!isEnabled || isSingleMode) ? "disabled" : ""}
+          onchange="onProviderWeight('${esc(key)}', this.value)">
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function onRoutingModeChange(mode) {
+  _providerSettings.mode = mode;
+  renderProviderList();
+  updateProviderSummary();
+}
+
+function onProviderToggle(key, enabled) {
+  if (!_providerSettings.providers) _providerSettings.providers = {};
+  if (!_providerSettings.providers[key]) {
+    _providerSettings.providers[key] = { enabled: true, weight: 1 };
+  }
+  _providerSettings.providers[key].enabled = enabled;
+  renderProviderList();
+  updateProviderSummary();
+}
+
+function onProviderWeight(key, val) {
+  if (!_providerSettings.providers) _providerSettings.providers = {};
+  if (!_providerSettings.providers[key]) {
+    _providerSettings.providers[key] = { enabled: true, weight: 1 };
+  }
+  _providerSettings.providers[key].weight = Math.max(1, parseInt(val) || 1);
+  updateProviderSummary();
+}
+
+function updateProviderSummary() {
+  const el = document.getElementById("provider-summary");
+  if (!el) return;
+  const mode = _providerSettings.mode;
+  const providers = _providerSettings.providers || {};
+  const enabledCount = Object.values(providers).filter(v => v.enabled).length;
+  if (mode === "single") {
+    const activeEntry = Object.entries(providers).find(([, v]) => v.enabled);
+    const activeName = activeEntry ? activeEntry[0] : "fastflowlm";
+    el.textContent = `Single provider: ${PROVIDER_LABELS[activeName] || activeName}`;
+  } else {
+    el.textContent = `${enabledCount} provider${enabledCount !== 1 ? "s" : ""} active · ${mode === "round_robin" ? "round robin" : "weighted"} mode`;
+  }
+}
+
+async function saveProviderSettings() {
+  document.getElementById("prov-modal-error").textContent = "";
+  try {
+    // Build flat enabled + weights dicts for backend
+    const enabled = {};
+    const weights = {};
+    for (const [k, v] of Object.entries(_providerSettings.providers)) {
+      enabled[k] = v.enabled;
+      weights[k] = v.weight;
+    }
+    const payload = {
+      mode: _providerSettings.mode,
+      enabled,
+      weights,
+    };
+    const res = await apiFetch("/api/settings/routing", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!res || !res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || "Save failed");
+    }
+    toast("Provider settings saved", "success");
+    closeProviderModal();
+  } catch(e) {
+    document.getElementById("prov-modal-error").textContent = e.message;
+  }
+}
+
 // ── Upload ────────────────────────────────────────────────────────────────────
 async function uploadFile(file) {
   const fd = new FormData();
@@ -551,6 +722,17 @@ function wireEvents() {
   dz.addEventListener("click", () => document.getElementById("file-input").click());
   document.getElementById("browse-btn").addEventListener("click", e => { e.stopPropagation(); document.getElementById("file-input").click(); });
   document.getElementById("file-input").addEventListener("change", () => { const f = document.getElementById("file-input").files[0]; if (f) uploadFile(f); });
+
+  // Provider modal
+  document.getElementById("open-provider-modal").addEventListener("click", openProviderModal);
+  document.getElementById("provider-modal-close")?.addEventListener("click", closeProviderModal);
+  document.getElementById("provider-modal")?.addEventListener("click", e => {
+    if (e.target.id === "provider-modal") closeProviderModal();
+  });
+  document.querySelectorAll("input[name=routing-mode]").forEach(radio => {
+    radio.addEventListener("change", e => onRoutingModeChange(e.target.value));
+  });
+  document.getElementById("save-provider-config-btn")?.addEventListener("click", saveProviderSettings);
 
   // Paste button (clipboard image)
   document.getElementById("paste-btn").addEventListener("click", async e => {
