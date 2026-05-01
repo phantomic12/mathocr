@@ -22,6 +22,9 @@ dist/
 exam_results/
 *.pdf
 
+# Test assets
+demo_images/
+
 # IDE
 .vscode/
 .idea/"

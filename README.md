@@ -7,7 +7,7 @@ Extract LaTeX from images and PDFs of math content using a local LLM.
 ### 1. Clone & configure
 
 ```bash
-git clone https://github.com/phantomic12/hermes-webui.git mathocr
+git clone https://github.com/phantomic12/mathocr.git
 cd mathocr
 cp .env.example .env
 # Edit .env — set MATHOCR_PROVIDER and provider-specific vars
@@ -86,19 +86,64 @@ npm install
 npm run dev   # proxies /api to :8000
 ```
 
-## API
+## Authentication
 
-| Method | Path | Description |
+MathOCR uses email/password authentication with JWT bearer tokens.
+
+**Roles:**
+- **User** — can upload files, view history, and export results
+- **Admin** — can do everything a user can, plus manage users (promote/demote/delete) and change provider settings
+
+**To create the first admin account**, set the bootstrap variables in `.env` before registering:
+
+```bash
+ADMIN_EMAIL=you@example.com
+ADMIN_PASSWORD=yourpassword
+```
+
+Then register with those exact credentials — the first registration matching `ADMIN_EMAIL`+`ADMIN_PASSWORD` is automatically promoted to admin.
+
+Admins can promote/demote other users via the sidebar admin panel in the UI, or via the API:
+
+```bash
+# Login
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"yourpassword"}'
+# Returns: { "access_token": "...", "user": { "id": "...", "is_admin": true, ... } }
+
+# List all users (admin only)
+curl http://localhost:8000/api/admin/users \
+  -H "Authorization: Bearer <token>"
+
+# Promote a user
+curl -X POST http://localhost:8000/api/admin/users/<user_id>/promote \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## API
 |--------|------|-------------|
 | `POST` | `/api/ocr/upload` | Upload image/PDF, returns `{job_id}` |
-| `GET` | `/api/ocr/status/{job_id}` | Job status + progress |
-| `GET` | `/api/ocr/result/{job_id}` | LaTeX result |
-| `WS` | `/api/ocr/ws/{job_id}` | Stream progress |
-| `GET` | `/api/history` | Paginated job history |
-| `DELETE` | `/api/history/{job_id}` | Delete job |
-| `GET` | `/api/settings` | Active provider |
-| `PUT` | `/api/settings` | Switch provider |
-| `GET` | `/health` | Health check |
+| `GET`  | `/api/ocr/status/{job_id}` | Job status + progress |
+| `GET`  | `/api/ocr/result/{job_id}` | LaTeX result |
+| `WS`   | `/api/ocr/ws/{job_id}` | Stream progress |
+| `GET`  | `/api/history` | Paginated job history |
+| `DELETE`| `/api/history/{job_id}` | Delete job |
+| `POST` | `/api/ocr/export/docx/{job_id}` | Export as Word (DOCX) |
+| `POST` | `/api/ocr/export/pdf/{job_id}` | Export as PDF |
+| `POST` | `/api/ocr/export/epub/{job_id}` | Export as EPUB |
+| `GET`  | `/api/providers` | List available providers |
+| `GET`  | `/api/settings` | Active provider config |
+| `PUT`  | `/api/settings` | Update provider config (admin only) |
+| `POST` | `/api/auth/register` | Register account |
+| `POST` | `/api/auth/login` | Login, returns JWT |
+| `GET`  | `/api/admin/users` | List all users (admin only) |
+| `POST` | `/api/admin/users/{user_id}/promote` | Make admin (admin only) |
+| `POST` | `/api/admin/users/{user_id}/demote` | Revoke admin (admin only) |
+| `DELETE`| `/api/admin/users/{user_id}` | Delete user (admin only) |
+| `GET`  | `/health` | Health check |
 
 ---
 
