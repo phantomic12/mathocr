@@ -7,6 +7,12 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
+lib/
+lib64/
+bin/
+CACHEDIR.TAG
+.lock
+pyvenv.cfg
 
 # Node
 node_modules/
@@ -18,4 +24,4 @@ exam_results/
 
 # IDE
 .vscode/
-.idea/
+.idea/"
